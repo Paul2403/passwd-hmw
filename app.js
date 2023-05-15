@@ -4,6 +4,8 @@ const {Client} = require('pg');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const nodemailer = require("nodemailer");
+const CryptoJS = require('crypto-js');
+const bcrypt = require('bcrypt');
 const otpDetails = {
   otp: '',
   expiryTime: ''
@@ -32,6 +34,8 @@ const client = new Client({
 
 const otpGenerator = require("otp-generator");
 
+
+
 generateOTP = () => {
   const OTP = otpGenerator.generate(6,{
     upperCaseAlphabets: false,
@@ -41,6 +45,8 @@ generateOTP = () => {
 
   return OTP;
 };
+
+
 
 
 
@@ -92,10 +98,15 @@ app.post('/user/otp' , (req,res) => {
 });
 
 app.post('/user/otpConfirm' , (req,res) => {
-  const data = JSON.stringify(req.body);
-  console.log('DATA', data);
   const currentTime = new Date();
   if (otpDetails.otp === req.body.otp && otpDetails.expiryTime > currentTime) {
+      // Generate a salt
+    // const salt = bcrypt.genSaltSync(10);
+    // const password = req.body.passwd;
+    // const hashedPassword = bcrypt.hashSync(password, salt);
+    // req.body.passwd = hashedPassword;
+    const data = JSON.stringify(req.body);
+    console.log('DATA', data);
     const dbFunction = `SELECT update_password ('${data}')`;
     console.log(JSON.stringify(dbFunction));
     client.query(dbFunction, (err, dbRes) => {
@@ -129,6 +140,7 @@ app.post('/user/otpConfirm' , (req,res) => {
 
 
 
+
 // app.post('/user/login' , (req,res) => {
 //     const data = JSON.stringify(req.body);
 //     console.log('DATA',data);
@@ -153,24 +165,90 @@ app.post('/user/otpConfirm' , (req,res) => {
     
 // })
 
+
+
 app.post('/user/login', (req, res) => {
+  // res.send({ status: 200, data: 1 });
   const data = JSON.stringify(req.body);
   console.log('DATA', data);
-  const dbFunction = `SELECT get_credentials ('${data}')`;
-  console.log(JSON.stringify(dbFunction));
+  const dbFunction = `SELECT id,current_password FROM public.login_credentials where email_id=('${req.body.email_id}')`;
   client.query(dbFunction, (err, dbRes) => {
     if (!err) {
-      console.log('RASCAL', dbRes.rows[0]);
-      if (dbRes.rows[0].get_credentials.status == 200) {
-        res.send({ status: 200, data: dbRes.rows[0].get_credentials.data[0] });
-      } else {
-        res.send({ status: 400, data: 'Data not found' });
+      if(dbRes.rows[0].current_password){
+        console.log('passssss', req.body.current_password);
+        if(dbRes.rows[0].current_password == req.body.current_password){
+          const identity = dbRes.rows[0].id;
+          console.log('Passwords MAtch');
+          console.log('HEYYYLO',req.body);
+          const newData = {
+            id: identity,
+            typedPass : req.body.typedPass
+          }
+          const newData1 = JSON.stringify(newData);
+          const dbFunction = `SELECT old_password_check ('${newData1}')`;
+          console.log(dbFunction);
+          client.query(dbFunction, (err, dbRes) => {
+            if (!err) {
+              if(dbRes.rows[0].old_password_check.status == 200){
+                res.send({ status: 200, data: identity});
+              }
+              else{
+                res.send({ status: 300, data: 'Password Already Exists!'});
+              }
+            
+            } else {
+              console.log(err.message);
+            }
+            
+          });
+          // 
+          // if(this.checkIfOldPasswords(data) == true){
+
+          // }
+        }
+        else{
+          res.send({ status: 400, data: 'Data not found' });
+        }
+        // if (passwordMatches == true) {
+        //   console.log('Passwords match!');
+        //   res.send({ status: 200, data: dbRes.rows[0].id });
+        // } else {
+        //   console.log('Passwords don\'t match');
+        //   res.send({ status: 400, data: 'Data not found' });
+        // }
+        // const hashedPassword = req.body.current_password;;
+        // console.log('HASHED PASSWORD',hashedPassword);
+        // const plaintextPassword = req.body.current_password;
+        // const storedPAssword = dbRes.rows[0].current_password;
+        // console.log('PLAIN TEXT PSSWROD',storedPAssword);
+        // const storedPassword = response.data.password;
+        // bcrypt.compare(hashedPassword, storedPAssword, (err, result) => {
+        //   console.log
+        //   if (err) {
+        //     console.error(err);
+        //     return;
+        //   }
+        //   if (result) {
+        //     console.log('Password match');
+        //     res.send({ status: 200, data: dbRes.rows[0].id });
+        //   } else {
+        //     console.log('Password does not match');
+        //     res.send({ status: 400, data: 'Data not found' });
+        //   }
+        // });
       }
+      console.log('RASCAL542', dbRes.rows[0]);
+      // if (dbRes.rows[0].get_credentials.status == 200) {
+      //   res.send({ status: 200, data: dbRes.rows[0].get_credentials.data[0] });
+      // } else {
+      //   res.send({ status: 400, data: 'Data not found' });
+      // }
     } else {
       console.log(err.message);
     }
     
   });
+   
 });
 
 
