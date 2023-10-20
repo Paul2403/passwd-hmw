@@ -97,28 +97,38 @@ app.post('/user/otp' , (req,res) => {
 
 //Submit the OTP recieved to update the password
 app.post('/user/otpConfirm' , (req,res) => {
+  console.log('HELLO');
   const currentTime = new Date();
-  if (otpDetails.otp === req.body.otp && otpDetails.expiryTime > currentTime) {
-    const data = JSON.stringify(req.body);
-    const dbFunction = `SELECT update_password ('${data}')`;
-    client.query(dbFunction, (err, dbRes) => {
-      if (!err) {
-        if(dbRes.rows[0].update_password.status==200){
-          res.send({status:200, data:dbRes.rows[0].update_password.data})
-        }
-        else{
-          res.send({status:400, data:"Password Updation Failed!"})
-        }
-      } else {
-        console.log(err.message);
+  if (otpDetails.otp == req.body.otp ) {
+    console.log('invaid');
+      if(otpDetails.expiryTime > currentTime){
+        const data = JSON.stringify(req.body);
+        const dbFunction = `SELECT update_password ('${data}')`;
+        client.query(dbFunction, (err, dbRes) => {
+          if (!err) {
+            if(dbRes.rows[0].update_password.status==200){
+              res.send({status:200, data:dbRes.rows[0].update_password.data})
+            }
+            else{
+              res.send({status:400, data:"Password Updation Failed!"})
+            }
+          } else {
+            console.log(err.message);
+          }
+          
+        });
       }
-      
-    });
-  } else if(otpDetails.otp === req.body.otp && otpDetails.expiryTime < currentTime) {
-    res.send({status:100, data:"OTP Expired!"})
-  }
-  else if(otpDetails.otp !== req.body.otp && otpDetails.expiryTime > currentTime) {
-    res.send({status:300, data:"Invalid OTP!"})
+      else {
+      res.send({status:100, data:"OTP Expired!"})
+    }
+  } 
+  else{
+      if(otpDetails.expiryTime > currentTime){
+        res.send({status:300, data:"Invalid OTP!"})
+      }
+      else{
+        res.send({status:100, data:"OTP Expired!"})
+      }
   }
     
 })
